@@ -1,0 +1,34 @@
+env:
+  matrix:
+    - ARCH=x86_64
+      DOCKER_BUILD=causticlab/hass-configurator-docker:${VERSION}
+      DOCKERFILE=Dockerfile.amd64
+    - ARCH=arm
+      DOCKERFILE=Dockerfile.rpi
+
+sudo: required
+
+services:
+  - docker
+
+before_install:
+  - VERSION=`cat VERSION`
+  - DOCKER_BUILD=causticlab/hass-configurator-docker:${VERSION}-${ARCH}
+
+install:
+  - rm -rf ./src/
+  - git clone https://github.com/danielperna84/hass-configurator.git ./src
+  - sed -i 's/GIT = False/GIT = True/g' ./src/configurator.py
+
+script:
+  - docker run --rm --privileged multiarch/qemu-user-static:register
+  - docker build -t ${DOCKER_BUILD} -f ${DOCKERFILE} .
+
+after_success:
+  - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+  - docker push ${DOCKER_BUILD}
+
+if: tag IS present
+
+notifications:
+  email: false
